@@ -667,10 +667,10 @@ val forall_as_seq:
   Lemma (requires (p (S.index s0 k) /\ S.slice s0 i j == S.slice s1 i j))
         (ensures (p (S.index s1 k)))
         [SMTPat (p (S.index s0 k));
-        SMTPat (S.slice s0 i j == S.slice s1 i j)]
+         SMTPat (Seq.equal (S.slice s0 i j) (S.slice s1 i j))]
 let forall_as_seq #a s0 s1 i j k p =
   assert (S.index (S.slice s0 i j) (k - i) ==
-         S.index (S.slice s1 i j) (k - i))
+          S.index (S.slice s1 i j) (k - i))
 
 val forall_preserved:
   #a:Type -> vec:vector a ->
@@ -684,8 +684,8 @@ val forall_preserved:
         (ensures (forall_ h1 vec i j p))
 let forall_preserved #a vec i j p dloc h0 h1 =
   modifies_as_seq_within vec i j dloc h0 h1;
-  assert (S.slice (as_seq h0 vec) (U32.v i) (U32.v j) ==
-         S.slice (as_seq h1 vec) (U32.v i) (U32.v j))
+  assert (Seq.equal (S.slice (as_seq h0 vec) (U32.v i) (U32.v j))
+                    (S.slice (as_seq h1 vec) (U32.v i) (U32.v j)))
 
 val forall2_extend:
   #a:Type -> h:HS.mem -> vec:vector a ->
