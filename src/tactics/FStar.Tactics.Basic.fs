@@ -1771,11 +1771,10 @@ let string_to_term env str
                ; frag_col  = 0
                })
     in
-    let string_to_AST_term (term: string): Parser.AST.term
-    = match ParseIt.parse (ParseIt.Fragment <| frag_of_text term) with
-      | ParseIt.Term x -> x
-      | _ -> failwith ("Could not parse term '"^term^"'")
-    in
-    let denv = FStar.Syntax.DsEnv.set_current_module env.dsenv (current_module env) in
-    ret <| ToSyntax.desugar_term denv (string_to_AST_term str)
+    match ParseIt.parse (ParseIt.Fragment <| frag_of_text str) with
+    | ParseIt.Term t -> 
+      let denv = FStar.Syntax.DsEnv.set_current_module env.dsenv (current_module env) in
+      ret <| ToSyntax.desugar_term denv t
+    | _ -> fail ("Could not parse term '"^str^"'")
+    
 
