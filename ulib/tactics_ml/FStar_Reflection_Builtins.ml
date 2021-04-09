@@ -42,7 +42,7 @@ let subst                   = RB.subst
 let inspect_range           = RB.inspect_range
 let range_of_term           = RB.range_of_term
 let range_of_sigelt         = RB.range_of_sigelt
-
+let lookup_sigelt_range     = RB.lookup_sigelt_range
 
 (* GM: Not sure if theese are needed, we don't expose them
  * in the library. *)

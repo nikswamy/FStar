@@ -95,7 +95,6 @@ type bv_view = {
     bv_sort : typ;
 }
 
-=======
 type rng_view = {
     file_name: string;
     start_pos: Z.t * Z.t;

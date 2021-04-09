@@ -57,7 +57,7 @@ val compare_string : string -> string -> int
 
 (* Primitives & helpers *)
 val lookup_typ            : env -> name -> option sigelt
-val lookup_sigelt_range   : env -> name -> option range
+val lookup_sigelt_range   : env -> name -> option FStar.Range.range
 val compare_bv            : bv -> bv -> order
 val binders_of_env        : env -> binders
 val moduleof              : env -> name
@@ -99,6 +99,6 @@ let check_with (vcfg : vconfig) : unit = ()
 
 val subst : bv -> term -> term -> term
 
-val inspect_range: range -> rng_view
-val range_of_term: term -> range
-val range_of_sigelt: sigelt -> range
+val inspect_range: FStar.Range.range -> rng_view
+val range_of_term: term -> FStar.Range.range
+val range_of_sigelt: sigelt -> FStar.Range.range
