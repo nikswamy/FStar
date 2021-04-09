@@ -39,6 +39,10 @@ let explode_qn              = RB.explode_qn
 let compare_string          = RB.compare_string
 let push_binder             = RB.push_binder
 let subst                   = RB.subst
+let inspect_range           = RB.inspect_range
+let range_of_term           = RB.range_of_term
+let range_of_sigelt         = RB.range_of_sigelt
+
 
 (* GM: Not sure if theese are needed, we don't expose them
  * in the library. *)
