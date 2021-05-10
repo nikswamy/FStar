@@ -215,6 +215,9 @@ let reflection_primops : list<Cfg.primitive_step> = [
     mk2 "lookup_typ"            lookup_typ            E.e_env             e_string_list      (e_option E.e_sigelt)
                                 lookup_typ            NRE.e_env           NBET.e_string_list (NBET.e_option NRE.e_sigelt);
 
+    mk2 "lookup_sigelt_range"   lookup_sigelt_range   E.e_env             e_string_list      (e_option e_range)
+                                lookup_sigelt_range   NRE.e_env           NBET.e_string_list (NBET.e_option NBET.e_range);
+
     mk1 "env_open_modules"      env_open_modules      E.e_env             (e_list e_string_list)
                                 env_open_modules      NRE.e_env           (NBET.e_list NBET.e_string_list);
 
@@ -229,6 +232,15 @@ let reflection_primops : list<Cfg.primitive_step> = [
 
     mk2 "push_binder"           push_binder           E.e_env             E.e_binder        E.e_env
                                 push_binder           NRE.e_env           NRE.e_binder      NRE.e_env;
+
+    mk1 "inspect_range"         inspect_range         e_range             E.e_rng_view
+                                inspect_range         NBET.e_range        NRE.e_rng_view;
+
+    mk1 "range_of_term"         range_of_term        E.e_term            e_range
+                                range_of_term        NRE.e_term          NBET.e_range;
+
+    mk1 "range_of_sigelt"       range_of_sigelt      E.e_sigelt            e_range
+                                range_of_sigelt      NRE.e_sigelt          NBET.e_range;
 ]
 
 let _ = List.iter FStar.TypeChecker.Cfg.register_extra_step reflection_primops
