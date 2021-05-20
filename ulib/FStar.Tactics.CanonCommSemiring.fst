@@ -1519,7 +1519,15 @@ let make_fvar (#a:Type) (t:term) (unquotea:term -> Tac a) (ts:list term)
 let rec reification_aux (#a:Type) (unquotea:term -> Tac a) (ts:list term) (vm:vmap a) (add opp mone mult t: term) : Tac (polynomial a * list term * vmap a) =
   // ddump ("term = " ^ term_to_string t ^ "\n");
   let hd, tl = collect_app_ref t in
-  match inspect hd, list_unref tl with
+  let (explicit_tl, implicit_tl) = List.Tot.partition (fun x ->
+      match (snd x) with
+      | Q_Explicit -> true
+      | _ -> false
+  ) (list_unref tl) in
+  let opfv_to_term (fv:fv): Tac term =
+    Tactics.Util.fold_left (fun acc imp -> pack (Tv_App acc imp)) (pack (Tv_FVar fv)) implicit_tl
+  in
+  match inspect hd, explicit_tl with
   | Tv_FVar fv, [(t1, _) ; (t2, _)] ->
     //ddump ("add = " ^ term_to_string add ^ "
     //     \nmul = " ^ term_to_string mult);
@@ -1529,15 +1537,17 @@ let rec reification_aux (#a:Type) (unquotea:term -> Tac a) (ts:list term) (vm:vm
       let (e2, ts, vm) = reification_aux unquotea ts vm add opp mone mult t2 in
       (op e1 e2, ts, vm)
       in
-    if term_eq (pack (Tv_FVar fv)) add then binop Pplus else
-    if term_eq (pack (Tv_FVar fv)) mult then binop Pmult else
+    let current_op = opfv_to_term fv in
+    if term_eq current_op add then binop Pplus else
+    if term_eq current_op mult then binop Pmult else
     make_fvar t unquotea ts vm
   | Tv_FVar fv, [(t1, _)] ->
     let monop (op:polynomial a -> polynomial a) : Tac (polynomial a * list term * vmap a) =
       let (e, ts, vm) = reification_aux unquotea ts vm add opp mone mult t1 in
       (op e, ts, vm)
       in
-    if term_eq (pack (Tv_FVar fv)) opp then monop Popp else
+    let current_op = opfv_to_term fv in
+    if term_eq current_op opp then monop Popp else
     make_fvar t unquotea ts vm
   | Tv_Const _, [] -> Pconst (unquotea t), ts, vm
   | _, _ -> make_fvar t unquotea ts vm
@@ -1698,8 +1708,120 @@ let int_semiring () : Tac unit =
     | _ ->
         canon_semiring int_cr
 
-#set-options "--tactic_trace_d 0 --no_smt"
+#push-options "--tactic_trace_d 0 --no_smt"
 
 let test (a:int) =
   let open FStar.Mul in
   assert (a + - a + 2 * a + - a == -a + 2 * a) by (int_semiring ())
+
+#pop-options
+
+type mod_ring (m:nat{2 < m}) = x:nat{x < m}
+
+[@@canon_attr]
+let zero #m: mod_ring m = 0
+
+[@@canon_attr]
+let one #m: mod_ring m = 1
+
+// Can't mark this as strict because https://github.com/FStarLang/FStar/issues/1923
+//[@@(strict_on_arguments [0;1])]
+let ( +% ) #m (a b:mod_ring m) : mod_ring m = (a + b) % m
+
+// Can't mark this as strict because https://github.com/FStarLang/FStar/issues/1923
+//[@@(strict_on_arguments [0;1])]
+let ( *% ) #m (a b:mod_ring m) : mod_ring m =
+  let open FStar.Mul in
+  (a * b) % m
+
+// We want this only to be unfolded for constants
+[@@(strict_on_arguments [0])]
+let ( ~% ) #m (a:mod_ring m) : mod_ring m = (-a) % m
+
+val add_identity (#m:nat{2<m}) (a:mod_ring m) : Lemma (zero +% a == a)
+let add_identity #m a = ()
+
+val mul_identity (#m:nat{2<m}) (a:mod_ring m) : Lemma (one *% a == a)
+let mul_identity #m a = ()
+
+val add_associativity (#m:nat{2<m}) (a b c:mod_ring m) : Lemma (a +% b +% c == a +% (b +% c))
+let add_associativity #m a b c =
+  calc (==) {
+    a +% b +% c;
+    == { }
+    ((a + b) % m + c) % m;
+    == { Math.Lemmas.lemma_mod_plus_distr_l (a + b) c m }
+    ((a + b) + c) % m;
+    == { }
+    (a + (b + c)) % m;
+    == { Math.Lemmas.lemma_mod_plus_distr_r a (b + c) m }
+    a +% (b +% c);
+  }
+
+val add_commutativity (#m:nat{2<m}) (a b:mod_ring m) : Lemma (a +% b == b +% a)
+let add_commutativity #m a b = ()
+
+val mul_associativity (#m:nat{2<m}) (a b c:mod_ring m) : Lemma (a *% b *% c == a *% (b *% c))
+let mul_associativity #m a b c =
+  let open FStar.Mul in
+  calc (==) {
+    a *% b *% c;
+    == { }
+    (((a * b) % m) * c) % m;
+    == { Math.Lemmas.lemma_mod_mul_distr_l (a * b) c m }
+    ((a * b) * c) % m;
+    == { Math.Lemmas.paren_mul_right a b c }
+    (a * (b * c)) % m;
+    == { Math.Lemmas.lemma_mod_mul_distr_r a (b * c) m }
+    (a * ((b * c) % m)) % m;
+    == { }
+    a *% (b *% c);
+  }
+
+val mul_commutativity (#m:nat{2<m}) (a b:mod_ring m) : Lemma (a *% b == b *% a)
+let mul_commutativity a b = ()
+
+[@@canon_attr]
+let ring_add_cm #m : cm (mod_ring m) =
+  CM zero ( +% ) add_identity add_associativity add_commutativity
+
+[@@canon_attr]
+let ring_mul_cm #m : cm (mod_ring m) =
+  CM one ( *% ) mul_identity mul_associativity mul_commutativity
+
+val mul_add_distr: (#m:nat{2<m}) -> distribute_left_lemma (mod_ring m) ring_add_cm ring_mul_cm
+let mul_add_distr #m a b c =
+  let open FStar.Mul in
+  calc (==) {
+    a *% (b +% c);
+    == { }
+    (a * (b +% c)) % m;
+    == { Math.Lemmas.lemma_mod_add_distr a (b + c) m }
+    (a * ((b + c) % m)) % m;
+    == { Math.Lemmas.lemma_mod_mul_distr_r a (b + c) m }
+    (a * (b + c)) % m;
+    == { Math.Lemmas.distributivity_add_right a b c }
+    (a * b + a * c) % m;
+    == { Math.Lemmas.lemma_mod_add_distr (a * b) (a * c) m }
+    (a * b + a *% c) % m;
+    == { }
+    (a *% c + a * b) % m;
+    == { Math.Lemmas.lemma_mod_add_distr (a *% c) (a * b) m }
+    (a *% c + a *% b) % m;
+    == { }
+    (a *% b + a *% c) % m;
+    == { }
+    a *% b +% a *% c;
+  }
+
+val mul_zero_l: (#m:nat{2<m}) -> mult_zero_l_lemma (mod_ring m) ring_add_cm ring_mul_cm
+let mul_zero_l #m a = assert_norm (0 % m == 0)
+
+val add_opp: (#m:nat{2<m}) -> (a:mod_ring m) -> Lemma (a +% ~%a == zero)
+let add_opp #m a = ()
+
+[@@canon_attr]
+let ring_cr #m : cr (mod_ring m) = CR ring_add_cm ring_mul_cm ( ~% ) add_opp mul_add_distr mul_zero_l
+
+let test_ring_cr (#m:nat{4 < m}) (x y:mod_ring m) =
+  assert (4 *% x +% 2 *% x == 3 *% x +% 3 *% x) by (canon_semiring (ring_cr #m); trefl (); qed ())
