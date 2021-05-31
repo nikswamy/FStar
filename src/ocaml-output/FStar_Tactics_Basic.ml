@@ -5362,7 +5362,9 @@ let (pack :
         let uu___ = FStar_Syntax_Util.abs [b] t FStar_Pervasives_Native.None in
         FStar_All.pipe_left FStar_Tactics_Monad.ret uu___
     | FStar_Reflection_Data.Tv_Arrow (b, c) ->
-        let uu___ = FStar_Syntax_Util.arrow [b] c in
+        let uu___ =
+          let uu___1 = FStar_Syntax_Util.arrow [b] c in
+          FStar_Syntax_Util.canon_arrow uu___1 in
         FStar_All.pipe_left FStar_Tactics_Monad.ret uu___
     | FStar_Reflection_Data.Tv_Type () ->
         FStar_All.pipe_left FStar_Tactics_Monad.ret FStar_Syntax_Util.ktype

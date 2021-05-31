@@ -1641,7 +1641,7 @@ let pack (tv:term_view) : tac<term> =
         ret <| U.abs [b] t None // TODO: effect?
 
     | Tv_Arrow (b, c) ->
-        ret <| U.arrow [b] c
+        ret <| (U.canon_arrow (U.arrow [b] c))
 
     | Tv_Type () ->
         ret <| U.ktype
